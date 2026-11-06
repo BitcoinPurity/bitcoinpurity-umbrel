@@ -21,7 +21,7 @@ data
 bitcoin-purity/
 purity-bitcoin-purity/
 **/data
-**/blocks
+blocks
 **/chainstate
 **/indexes
 **/wallets
