@@ -1,0 +1,59 @@
+# Version-control noise
+.git
+.gitignore
+
+# OS / editor cruft
+.DS_Store
+.vscode/
+.idea/
+
+# Dependency directories anywhere in the tree
+**/node_modules
+
+# Build artefacts (you can add more as they appear)
+**/dist
+**/build
+
+# Local data mounts – we don't need them inside the build context
+data
+
+# Packaging and local runtime data are not build inputs
+bitcoin-purity/
+purity-bitcoin-purity/
+**/data
+**/blocks
+**/chainstate
+**/indexes
+**/wallets
+**/wallet.dat
+**/peers.dat
+**/mempool.dat
+**/.bitcoin
+**/.bitcoinpurity
+
+# Credentials and local configuration (also excluded from intermediate stages)
+**/AGENTS.md
+**/.env
+**/.env.*
+**/secrets
+**/secrets.*
+**/*secret*
+**/.cookie
+**/*.cookie
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/id_rsa*
+**/id_ed25519*
+**/bitcoin.conf
+**/bitcoinpurity.conf
+**/.npmrc
+**/.ssh
+**/.aws
+**/.docker
+**/*.log
+**/*.tmp
+**/*.bak
+**/docker-compose.override.*
+**/compose.override.*

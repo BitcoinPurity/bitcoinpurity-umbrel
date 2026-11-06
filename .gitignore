@@ -1,0 +1,86 @@
+# Agent instructions
+AGENTS.md
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+.secrets/
+secrets.local.*
+*.secret
+*.secrets
+rpcpassword
+rpcpassword.*
+.cookie
+.cookie.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.privkey
+id_rsa
+id_ed25519
+
+# Dependencies, build output and caches
+node_modules/
+dist/
+.cache/
+.next/
+.nuxt/
+.turbo/
+.parcel-cache/
+.vite/
+.nx/cache/
+*.tsbuildinfo
+
+# Logs and temporary files
+*.log
+*.log.*
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Local IDE settings
+.vscode/
+.idea/
+
+# Blockchain, wallets and local user data
+/blocks/
+/chainstate/
+/indexes/
+/wallets/
+wallet.dat
+wallet.dat.*
+wallet.dat-*
+peers.dat
+banlist.dat
+mempool.dat
+fee_estimates.dat
+/user-data/
+/userdata/
+data/**
+!data/**/
+!data/**/.gitkeep
+/bitcoin-purity/data/**
+!/bitcoin-purity/data/**/
+!/bitcoin-purity/data/**/.gitkeep
+/purity-bitcoin-purity/data/**
+!/purity-bitcoin-purity/data/**/
+!/purity-bitcoin-purity/data/**/.gitkeep
+
+# Local Docker Compose overrides
+docker-compose.override.yml
+docker-compose.override.yaml
+docker-compose.override.*.yml
+docker-compose.override.*.yaml
+compose.override.yml
+compose.override.yaml
+compose.override.*.yml
+compose.override.*.yaml

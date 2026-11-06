@@ -1,0 +1,147 @@
+name: Publish Bitcoin Purity Umbrel
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-bitcoin-purity-0.1.0
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/bitcoinpurity/bitcoinpurity-umbrel
+  VERSION: 0.1.0
+
+jobs:
+  build:
+    name: Build linux/${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The existing Dockerfile verifies official BTC1 v1.1.2 SHA-256 hashes.
+      # Publish only by digest here; the shared version tag is created below.
+      - name: Build and upload architecture by digest
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          target: runtime
+          platforms: linux/${{ matrix.arch }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/BitcoinPurity/bitcoinpurity-umbrel
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Check BTC1 and application artifacts on native architecture
+        shell: bash
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          image="${IMAGE}@${DIGEST}"
+          docker run --rm --entrypoint /opt/bitcoind/v1.1.2/bitcoind "$image" --version | grep -F '1.1.2'
+          docker run --rm --entrypoint node "$image" --input-type=module -e '
+            import fs from "node:fs";
+            for (const file of ["dist/server.js", "dist/public/index.html"]) fs.accessSync(file);
+            await import("fastify");
+            await import("zeromq");
+          '
+
+      - name: Save architecture digest
+        shell: bash
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          mkdir -p "$RUNNER_TEMP/digests"
+          touch "$RUNNER_TEMP/digests/${DIGEST#sha256:}"
+
+      - name: Upload architecture digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish multi-platform tag
+    needs: build
+    runs-on: ubuntu-24.04
+    outputs:
+      digest: ${{ steps.manifest.outputs.digest }}
+    steps:
+      - name: Download both architecture digests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # needs: build prevents this job from running unless BOTH builds succeed.
+      - name: Publish and record manifest digest
+        id: manifest
+        shell: bash
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          digests=(*)
+          [[ ${#digests[@]} -eq 2 ]]
+          sources=()
+          for digest in "${digests[@]}"; do
+            [[ "$digest" =~ ^[0-9a-f]{64}$ ]]
+            sources+=("${IMAGE}@sha256:${digest}")
+          done
+          docker buildx imagetools create --tag "${IMAGE}:${VERSION}" "${sources[@]}"
+          digest="$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .Manifest}}' | jq -er '.digest')"
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          printf 'image: %s:%s@%s\n' "$IMAGE" "$VERSION" "$digest" > "$RUNNER_TEMP/image-digest.txt"
+          cat "$RUNNER_TEMP/image-digest.txt" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save published image reference
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitcoin-purity-image-digest
+          path: ${{ runner.temp }}/image-digest.txt
+          if-no-files-found: error
+          retention-days: 90
