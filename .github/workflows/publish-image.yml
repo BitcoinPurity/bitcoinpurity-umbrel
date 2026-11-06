@@ -66,7 +66,7 @@ jobs:
         run: |
           set -euo pipefail
           image="${IMAGE}@${DIGEST}"
-          docker run --rm --entrypoint /opt/bitcoind/v1.1.2/bitcoind "$image" --version | grep -F '1.1.2'
+          docker run --rm --entrypoint /opt/bitcoind/v1.1.2/bitcoind "$image" -datadir=/tmp --version | grep -F '1.1.2'
           docker run --rm --entrypoint node "$image" --input-type=module -e '
             import fs from "node:fs";
             for (const file of ["dist/server.js", "dist/public/index.html"]) fs.accessSync(file);
