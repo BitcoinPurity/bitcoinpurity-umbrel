@@ -14,6 +14,8 @@ import {ANIMATION_CONFIG} from './animation.config'
 import type {Block} from '#types'
 import type {CubeData} from './types'
 
+const EMPTY_BLOCKS: Block[] = []
+
 export function Scene() {
 	const {clock} = useThree()
 	const [cubes, setCubes] = useState<CubeData[]>([])
@@ -24,13 +26,15 @@ export function Scene() {
 	// Sync status and blocks
 	const {data: syncStatus} = useSyncStatus()
 	const stage = syncStage(syncStatus)
-	const {data: rawBlocks = [], isLoading: isLoadingBlocks} = useBlocks({limit: 5, stage})
+	const {data: rawBlocks = EMPTY_BLOCKS} = useBlocks({limit: 5, stage})
 	// REST returns oldest-first (for charts). Reverse to newest-first for the cube layout
 	// where the newest block enters from the left and old blocks slide right.
 	// Memoized to keep a stable reference — without this, the useEffects below that depend
 	// on `blocks` would re-fire on every render (new array from .reverse()).
 	const blocks = useMemo(() => [...rawBlocks].reverse(), [rawBlocks])
-	const isLoading = stage === 'pre-headers' || stage === 'headers' || stage === 'IBD' || isLoadingBlocks
+	// Keep placeholders for empty/error responses, but never hide cached blocks
+	// during IBD or a background refetch (including a failed refetch).
+	const isLoading = blocks.length === 0
 
 	// Initialize cubes
 	useEffect(() => {
